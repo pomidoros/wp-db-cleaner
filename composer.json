@@ -4,7 +4,7 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Slovenberg",
+            "name": "slovenberg",
             "email": "islovenberg@mail.ru"
         }
     ],
@@ -14,7 +14,7 @@
     "minimum-sttability": "dev",
     "autoload": {
         "psr-4": {
-            "slovenberg\\urlDbCleaner\\": "src/"
+            "slovenberg\\WpDbCleaner\\": "src/"
         }
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace slovenberg\urlDbCleaner;
+namespace slovenberg\WpDbCleaner;
 
 
 class Main {
