@@ -8,9 +8,13 @@
             "email": "islovenberg@mail.ru"
         }
     ],
-    "require": {
-        "vlucas/phpdotenv": "^5.3",
+    "require-dev": {
+        "php": "^5.3"
     },
+    "require": {
+        "vlucas/phpdotenv": "^5.3"
+    },
+    "minimum-sttability": "dev",
     "autoload": {
         "psr-4": {
             "slovenberg\\urlDbCleaner": "src/"
