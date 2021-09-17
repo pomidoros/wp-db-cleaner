@@ -1,6 +1,10 @@
 <?php
 
 namespace slovenberg\WpDbCleaner;
+use slovenberg\WpDbCleaner\exceptions\HandleArgvException;
+use slovenberg\WpDbCleaner\exceptions\MainException;
+use slovenberg\WpDbCleaner\exceptions\EnvironmentException;
+use slovenberg\WpDbCleaner\exceptions\ConnectionException;
 
 
 class Main {
@@ -25,7 +29,7 @@ class Main {
 		$argvs = array_slice($argvs, 0);
 		if(count($argvs) != 2)
 		{
-			throw Exception("gwefgwefwe");
+			throw new HandleArgvException("The count of the args should be equal to 2");
 		}
 		static::$search = $argvs[0];
 		static::$replacement = $argvs[1];
@@ -33,15 +37,36 @@ class Main {
 	}
 
 	/**
+	 * Reset all static properties
+	 * 
+	 */ 
+	private static function resetAll()
+	{
+		static::$replacement = null;
+		static::$search = null;
+		static::$connection = null;
+		echo "All processes have been completed" . PHP_EOL;
+	}
+
+	/**
 	 * Main function
 	 */ 
 	public static function start() {
 		global $argv;
-		static::handleArgv($argv);
-		static::checkEnvVars();
-		static::connectDb();
-		$wp_tables = static::getWpTables();
-		static::handleTables($wp_tables);
+		try 
+		{
+			static::handleArgv($argv);
+			static::checkEnvVars();
+			static::connectDb();
+			$wp_tables = static::getWpTables();
+			static::handleTables($wp_tables);
+		} catch(\Exception $exc)
+		{
+			throw new MainException("", 0, $exc);
+		} finally
+		{
+			static::resetAll();
+		}
 	}
 
 	private static function checkEnvVars()
@@ -51,7 +76,7 @@ class Main {
 		{
 			if(!isset($_ENV[$var_name]))
 			{
-				throw new \Exception("Hello");
+				throw new EnvironmentException("Some environment's variables don't exist");
 			}
 		}
 	}
@@ -67,9 +92,9 @@ class Main {
 			static::$connection = new \PDO("mysql:dbname=$_ENV[DB_NAME];host=$_ENV[DB_HOST]",
 				$_ENV['DB_USER'], $_ENV['DB_PASSWORD']);
 			static::$connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-		} catch(\Throwable $exc) 
+		} catch(\PDOExcetion $exc) 
 		{
-			echo $exc->getMessage() . PHP_EOL;
+			throw new ConnectionException("Some problem appeared in connection process", 0, $exc);
 		}
 	}
 
@@ -80,19 +105,21 @@ class Main {
 	private static function getWpTables(): array
 	{
 		$query = "SELECT * FROM information_schema.tables";
-
-		if(empty(static::$connection))
-			throw new \Throwable('Hello');
-		$PST = static::$connection->prepare($query);
-		$PST->execute();
-		$PST->setFetchMode(\PDO::FETCH_OBJ);
-		$array_of_tables = [];
-		while($row = $PST->fetch())
-		{
-			if($row->TABLE_SCHEMA == $_ENV['DB_NAME'])
+		try {
+			$PST = static::$connection->prepare($query);
+			$PST->execute();
+			$PST->setFetchMode(\PDO::FETCH_OBJ);
+			$array_of_tables = [];
+			while($row = $PST->fetch())
 			{
-				array_push($array_of_tables, $row->TABLE_NAME);
+				if($row->TABLE_SCHEMA == $_ENV['DB_NAME'])
+				{
+					array_push($array_of_tables, $row->TABLE_NAME);
+				}
 			}
+		} catch(\PDOException $exc)
+		{
+			throw new ConnectionException("Some problems appeared in 'getting Tables' process", 0, $exc);
 		}
 		return $array_of_tables;
 	}
@@ -121,17 +148,22 @@ class Main {
 	private static function getTableColumns($table): array
 	{
 		$array_of_columns = [];
-		$query = "SELECT COLUMN_NAME as c_name FROM information_schema.columns WHERE TABLE_NAME=:table_name";
-		$PST = static::$connection->prepare($query);
-		$PST->bindParam(':table_name', $table);
-		$PST->setFetchMode(\PDO::FETCH_OBJ);
-		$PST->execute();
-		
-		while($row=$PST->fetch())
+		try 
 		{
-			array_push($array_of_columns, $row->c_name);
+			$query = "SELECT COLUMN_NAME as c_name FROM information_schema.columns WHERE TABLE_NAME=:table_name";
+			$PST = static::$connection->prepare($query);
+			$PST->bindParam(':table_name', $table);
+			$PST->setFetchMode(\PDO::FETCH_OBJ);
+			$PST->execute();
+			
+			while($row=$PST->fetch())
+			{
+				array_push($array_of_columns, $row->c_name);
+			}
+		} catch(\PDOException $exc)
+		{
+			throw new ConnectionException("Some problems appeared in 'getting Columns' process", 0, $exc);
 		}
-
 		return $array_of_columns;
 	}
 
@@ -148,14 +180,14 @@ class Main {
 			$PST = static::$connection->prepare($query);
 			$PST->execute();
 			$PST->setFetchMode(\PDO::FETCH_OBJ);
+			while($row = $PST->fetch())
+			{
+				$new_string = str_replace(static::$search, static::$replacement, $row->feature);
+				static::updateFeatureByNewValue($table, $row->id, $column, $new_string);
+			}
 		} catch(\PDOException $exc)
 		{
-			return;
-		}
-		while($row = $PST->fetch())
-		{
-			$new_string = str_replace(static::$search, static::$replacement, $row->feature);
-			static::updateFeatureByNewValue($table, $row->id, $column, $new_string);
+			throw new ConnectionException("Some problems appeared in 'Updating Column' process", 0, $exc);
 		}
 	}
 
@@ -178,7 +210,7 @@ class Main {
 		}
 		catch(\PDOException $exc)
 		{
-			echo $exc->getMessage();
+			throw new ConnectionException("Some problems appeared in 'Insert new value' process", 0, $exc);
 		}
 	}
 }
