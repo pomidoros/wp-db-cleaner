@@ -1,0 +1,19 @@
+{
+    "name": "slovenberg/url-db-cleaner",
+    "description": "\"Replacement of one word to second word\"",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Slovenberg",
+            "email": "islovenberg@mail.ru"
+        }
+    ],
+    "require": {
+        "vlucas/phpdotenv": "^5.3",
+    },
+    "autoload": {
+        "psr-4": {
+            "slovenberg\\urlDbCleaner": "src/"
+        }
+    }
+}
