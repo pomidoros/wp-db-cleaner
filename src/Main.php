@@ -52,6 +52,7 @@ class Main {
 	 * Main function
 	 */ 
 	public static function start() {
+		echo "It's starting replacements..." . PHP_EOL;
 		global $argv;
 		try 
 		{
@@ -187,7 +188,7 @@ class Main {
 			}
 		} catch(\PDOException $exc)
 		{
-			throw new ConnectionException("Some problems appeared in 'Updating Column' process", 0, $exc);
+			return;
 		}
 	}
 
