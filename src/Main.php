@@ -23,7 +23,7 @@ class Main {
 	 * Insert needle values into the static properties
 	 * @param array $argvs argv in console
 	 */ 
-	private static function handleArgv(array $argvs): null
+	private static function handleArgv(array $argvs)
 	{
 		unset($argvs[0]);
 		$argvs = array_slice($argvs, 0);
