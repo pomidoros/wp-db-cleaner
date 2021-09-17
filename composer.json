@@ -1,6 +1,6 @@
 {
-    "name": "slovenberg/url-db-cleaner",
-    "description": "\"Replacement of one word to second word\"",
+    "name": "slovenberg/wp-db-cleaner",
+    "description": "\"Replacement of one word to second word in database for wordpress\"",
     "license": "MIT",
     "authors": [
         {
