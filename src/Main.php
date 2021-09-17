@@ -9,6 +9,7 @@ class Main {
 	}
 
 	public static function start() {
-
+		$basic_dir = __DIR__ . "/../../../../";
+		var_dump(scandir($basic_dir));
 	}
 }
