@@ -16,8 +16,7 @@ The world won't be the same again. Welcome! The script which replace one phrase 
 
 * `cd /path/to/project/with/package/json/on/root`
 
-* 
-```shell
+* ```shell
 >> composer require slovenberg/url-db-cleaner
 ```
 
