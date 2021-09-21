@@ -48,6 +48,7 @@ class Main {
 		echo "All processes have been completed" . PHP_EOL;
 	}
 
+
 	/**
 	 * Main function
 	 */ 
@@ -72,12 +73,19 @@ class Main {
 
 	private static function checkEnvVars()
 	{
-		$var_names = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+		$var_names = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "CLEANER"];
 		foreach($var_names as $var_name)
 		{
 			if(!isset($_ENV[$var_name]))
 			{
-				throw new EnvironmentException("Some environment's variables don't exist");
+				throw new EnvironmentException($var_name . " environment's variables don't exist");
+			}
+
+			if($var_name === "CLEANER")
+			{
+				if($_ENV[$var_name] === "TRUE")
+					continue;
+				throw new EnvironmentException("You can't start this script. Change 'CLEANER' statement on .env file to TRUE");
 			}
 		}
 	}
