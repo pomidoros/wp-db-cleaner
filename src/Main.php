@@ -88,14 +88,12 @@ class Main {
 	 */
 	private static function connectDb() 
 	{
-		try 
+		static::$connection = new \mysqli($_ENV['DB_HOST'], $_ENV['DB_USER'], 
+			$_ENV['DB_PASSWORD'], $_ENV['DB_NAME']);
+		 
+		if(static::$connection->connect_error)
 		{
-			static::$connection = new \PDO("mysql:dbname=$_ENV[DB_NAME];host=$_ENV[DB_HOST]",
-				$_ENV['DB_USER'], $_ENV['DB_PASSWORD']);
-			static::$connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-		} catch(\PDOExcetion $exc) 
-		{
-			throw new ConnectionException("Some problem appeared in connection process", 0, $exc);
+			throw new ConnectionException("Some problem appeared in connection process", 0, $connection->connect_error);
 		}
 	}
 
@@ -105,24 +103,36 @@ class Main {
 	 */ 
 	private static function getWpTables(): array
 	{
+		$array_of_tables = array();
 		$query = "SELECT * FROM information_schema.tables";
-		try {
-			$PST = static::$connection->prepare($query);
-			$PST->execute();
-			$PST->setFetchMode(\PDO::FETCH_OBJ);
-			$array_of_tables = [];
-			while($row = $PST->fetch())
-			{
-				if($row->TABLE_SCHEMA == $_ENV['DB_NAME'])
-				{
-					array_push($array_of_tables, $row->TABLE_NAME);
-				}
-			}
-		} catch(\PDOException $exc)
+		# инициализируем объект класса подготовленных запросов
+		$stmt = static::$connection->stmt_init();
+		if
+		(
+			$stmt->prepare($query) === false
+			or
+			# Выполняем запрос
+			$stmt->execute() === false
+			or
+			# Небуферизированное получение данных
+			($result = $stmt->get_result()) === false
+			or
+			$stmt->close() === false
+
+		)
 		{
-			throw new ConnectionException("Some problems appeared in 'getting Tables' process", 0, $exc);
+			throw new ConnectionException("Some problems appeared in 'getting Tables' process", 0, $stmt->error);
+		}
+		# Получаем по порядку данные
+		while($result_row = $result->fetch_object())
+		{
+			if($result_row->TABLE_SCHEMA == $_ENV['DB_NAME'])
+			{
+				array_push($array_of_tables, $result_row->TABLE_NAME);
+			}
 		}
 		return $array_of_tables;
+
 	}
 
 	/**
@@ -149,21 +159,25 @@ class Main {
 	private static function getTableColumns($table): array
 	{
 		$array_of_columns = [];
-		try 
+		$stmt = static::$connection->stmt_init();
+		$query = "SELECT COLUMN_NAME as c_name FROM information_schema.columns WHERE TABLE_NAME=?";
+		if(
+			$stmt->prepare($query) === false
+			or
+			$stmt->bind_param('s', $table) === false
+			or
+			$stmt->execute() === false
+			or
+			($stmt_result = $stmt->get_result()) === false
+			or
+			$stmt->close() === false
+		)
 		{
-			$query = "SELECT COLUMN_NAME as c_name FROM information_schema.columns WHERE TABLE_NAME=:table_name";
-			$PST = static::$connection->prepare($query);
-			$PST->bindParam(':table_name', $table);
-			$PST->setFetchMode(\PDO::FETCH_OBJ);
-			$PST->execute();
-			
-			while($row=$PST->fetch())
-			{
-				array_push($array_of_columns, $row->c_name);
-			}
-		} catch(\PDOException $exc)
+			throw new ConnectionException("Some problems appeared in 'getting Columns' process", 0, $stmt->error);
+		}
+		while($row=$stmt_result->fetch_object())
 		{
-			throw new ConnectionException("Some problems appeared in 'getting Columns' process", 0, $exc);
+			array_push($array_of_columns, $row->c_name);
 		}
 		return $array_of_columns;
 	}
@@ -174,21 +188,25 @@ class Main {
 	 */
 	private static function updateColumn($table, $column)
 	{
-		try 
-		{
-			$pattern = "'%" . static::$search . "%'";
-			$query = "SELECT id, $column as feature FROM $table WHERE $column LIKE $pattern";
-			$PST = static::$connection->prepare($query);
-			$PST->execute();
-			$PST->setFetchMode(\PDO::FETCH_OBJ);
-			while($row = $PST->fetch())
-			{
-				$new_string = str_replace(static::$search, static::$replacement, $row->feature);
-				static::updateFeatureByNewValue($table, $row->id, $column, $new_string);
-			}
-		} catch(\PDOException $exc)
+		$pattern = "'%" . static::$search . "%'";
+		$query = "SELECT id, $column as feature FROM $table WHERE $column LIKE $pattern";
+		$stmt = static::$connection->stmt_init();
+		if
+		(
+			$stmt->prepare($query) === false
+			or
+			$stmt->execute() === false
+			or
+			($stmt_result = $stmt->get_result()) === false
+		)
 		{
 			return;
+		}
+		if($stmt->close() === false) {throw new ConnectionException("Some problems on updating", 0);}
+		while($row = $stmt_result->fetch_object())
+		{
+			$new_string = str_replace(static::$search, static::$replacement, $row->feature);
+			static::updateFeatureByNewValue($table, $row->id, $column, $new_string);
 		}
 	}
 
@@ -201,17 +219,20 @@ class Main {
 	 */
 	private static function updateFeatureByNewValue($table, $id, $feature, $new_value)
 	{
-		try 
+		$query = "UPDATE $table SET $feature=? WHERE id=?";
+		$stmt = static::$connection->stmt_init();
+		if
+		(
+			$stmt->prepare($query) === false
+			or
+			$stmt->bind_param('si', $new_value, $id) === false
+			or
+			$stmt->execute() === false
+			or
+			$stmt->close() === false
+		)
 		{
-			$query = "UPDATE $table SET $feature=:value WHERE id=:id";
-			$PST = static::$connection->prepare($query);
-			$PST->bindParam(':id', $id);
-			$PST->bindParam(':value', $new_value);
-			$PST->execute();
-		}
-		catch(\PDOException $exc)
-		{
-			throw new ConnectionException("Some problems appeared in 'Insert new value' process", 0, $exc);
+			throw new ConnectionException("Some problems appeared in 'Insert new value' process", 0, $stmt->error);
 		}
 	}
 }
